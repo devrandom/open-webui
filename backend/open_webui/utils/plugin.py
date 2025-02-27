@@ -2,13 +2,12 @@ import os
 import re
 import subprocess
 import sys
-from importlib import util
 import types
 import tempfile
 import logging
 
-from open_webui.env import SRC_LOG_LEVELS, PIP_OPTIONS, PIP_PACKAGE_INDEX_OPTIONS
-from open_webui.models.functions import Functions
+from open_webui.env import OFFLINE_MODE, SRC_LOG_LEVELS, PIP_OPTIONS, PIP_PACKAGE_INDEX_OPTIONS
+from open_webui.models.functions import FunctionForm, FunctionMeta, Functions
 from open_webui.models.tools import Tools
 
 log = logging.getLogger(__name__)
@@ -168,6 +167,9 @@ def load_function_module_by_id(function_id, content=None):
 
 def install_frontmatter_requirements(requirements: str):
     if requirements:
+        if OFFLINE_MODE:
+            log.warning("skipping requirements install due to OFFLINE_MODE")
+            return
         try:
             req_list = [req.strip() for req in requirements.split(",")]
             log.info(f"Installing requirements: {' '.join(req_list)}")
@@ -212,3 +214,56 @@ def install_tool_and_function_dependencies():
         install_frontmatter_requirements(all_dependencies.strip(", "))
     except Exception as e:
         log.error(f"Error installing requirements: {e}")
+
+import pkgutil
+import importlib
+
+def sync_and_list_static_filters():
+    functions = Functions.get_functions_by_type("filter")
+    function_ids = [f.id for f in functions]
+
+    # Walk through packages specified in the environment variable
+    mods = []
+    for package in [p for p in os.environ.get("OPEN_WEBUI_PLUGINS", "").split(",") if p]:
+        try:
+            module = importlib.import_module(package)
+        except Exception:
+            print(f"Error importing module: {package}")
+            continue
+        print("importing from module:", module)
+        mods.extend(
+            [
+                name
+                for importer, name, is_pkg in
+                pkgutil.walk_packages(module.__path__, prefix=module.__name__ + ".")
+            ]
+        )
+
+    filter_modules = []
+    for mod in mods:
+        try:
+            module = importlib.import_module(mod)
+        except Exception:
+            continue
+            # check if the module has a Filter class
+        if hasattr(module, "Filter"):
+            filter_modules.append(mod)
+            if mod not in function_ids:
+                frontmatter = extract_frontmatter("\"\"\"\n" + module.__doc__ + "\n\"\"\"")
+                Functions.insert_new_function(
+                    "",
+                    "filter",
+                    FunctionForm(id=mod, name=mod, content="", meta=FunctionMeta(
+                        description="",
+                        manifest=frontmatter
+                    )),
+                )
+
+    print("found filter modules:", filter_modules)
+    return filter_modules
+
+
+def load_static_filter(filter_id):
+    # Load the filter module
+    module = importlib.import_module(filter_id)
+    return module.Filter()

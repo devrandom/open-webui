@@ -398,6 +398,7 @@ from open_webui.utils.auth import (
 )
 from open_webui.utils.plugin import install_tool_and_function_dependencies
 from open_webui.utils.oauth import OAuthManager
+from open_webui.utils.plugin import sync_and_list_static_filters
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 from open_webui.tasks import (
@@ -449,6 +450,7 @@ https://github.com/open-webui/open-webui
 """
 )
 
+sync_and_list_static_filters()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
