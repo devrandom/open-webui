@@ -21,7 +21,7 @@ ARG UID=0
 ARG GID=0
 
 ######## WebUI frontend ########
-FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
+FROM node:22-alpine3.20 AS build
 ARG BUILD_HASH
 
 WORKDIR /app
@@ -29,8 +29,13 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY *.ts *.json *.js *.md ./
+COPY src/ ./src
+COPY scripts ./scripts
+COPY static ./static
+COPY cypress ./cypress
 ENV APP_BUILD_HASH=${BUILD_HASH}
+RUN ls -l scripts
 RUN npm run build
 
 ######## WebUI backend ########
@@ -162,6 +167,8 @@ COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 
 # copy backend files
 COPY --chown=$UID:$GID ./backend .
+COPY --from=plugins --chown=$UID:$GID / /app/plugins
+RUN (cd /app/plugins && pip install -e .)
 
 EXPOSE 8080
 
