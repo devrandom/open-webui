@@ -150,7 +150,7 @@ RUN if [ "$USE_CUDA" = "true" ]; then \
     fi && \
     else \
     uv pip install --system -r requirements.txt --no-cache-dir; \
-    fi; \
+    fi && \
     mkdir -p /app/backend/data && chown -R $UID:$GID /app/backend/data/
 
 # Install Ollama if requested
