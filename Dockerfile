@@ -183,6 +183,8 @@ COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 
 # copy backend files
 COPY --chown=$UID:$GID ./backend .
+COPY --from=plugins --chown=$UID:$GID / /app/plugins
+RUN (cd /app/plugins && pip install -e .)
 
 EXPOSE 8080
 
